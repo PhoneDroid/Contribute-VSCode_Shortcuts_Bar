@@ -34,6 +34,8 @@ import {
   workspace,
 } from "vscode";
 
+
+
 var init = false;
 var hasCpp = false;
 
@@ -310,33 +312,39 @@ function resolveVariables(commandLine: String) {
     });
 }
 
-function getActiveEditorName() {
-  if (window.activeTextEditor) {
-    return window.activeTextEditor.document.fileName;
-  }
-  return "";
+
+function getActiveEditorName (){
+    return window.activeTextEditor?.document.fileName;
 }
 
-function getWorkspaceFolder(activeTextEditor = window.activeTextEditor) {
-  let folder;
-  if (workspace?.workspaceFolders) {
-    if (workspace.workspaceFolders.length === 1) {
-      folder = workspace.workspaceFolders[0].uri.fsPath;
-    } else if (activeTextEditor) {
-      const folderObject = workspace.getWorkspaceFolder(
-        activeTextEditor.document.uri
-      );
-      if (folderObject) {
-        folder = folderObject.uri.fsPath;
-      } else {
-        folder = "";
-      }
-    } else if (workspace.workspaceFolders.length > 0) {
-      folder = workspace.workspaceFolders[0].uri.fsPath;
+function getWorkspaceFolder ( activeTextEditor = window.activeTextEditor ){
+
+    const folders = workspace?.workspaceFolders;
+
+    if( ! folders )
+        return
+
+    const { length } = folders;
+
+    const [ folder ] = folders;
+
+    if( length === 1 )
+        return folder.uri.fsPath
+
+    if( activeTextEditor ){
+
+        const folderObject = workspace
+            .getWorkspaceFolder(activeTextEditor.document.uri);
+
+        return folderObject
+            ?. uri.fsPath
+            ?? '' ;
     }
-  }
-  return folder;
+
+    if( length )
+        return folder.uri.fsPath
 }
+
 
 // https://stackoverflow.com/a/66303259/3073272
 function isMajorUpdate(previousVersion: string, currentVersion: string) {
