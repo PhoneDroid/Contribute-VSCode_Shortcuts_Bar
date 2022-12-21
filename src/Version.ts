@@ -21,8 +21,6 @@ export default class Version {
 
     constructor ( bits : number [] = [] ){
 
-        console.log(bits)
-
         const { length } = bits;
 
         if(bits.length > 3)

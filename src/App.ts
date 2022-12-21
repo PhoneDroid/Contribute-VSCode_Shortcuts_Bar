@@ -26,21 +26,15 @@ import { basename, dirname, extname } from "path";
 import {
   commands,
   Disposable,
-  env,
-  Extension,
   ExtensionContext,
-  extensions,
-  Uri,
   window,
   workspace,
 } from "vscode";
 
-
+import { checkForUpdates } from './UpdateNotification'
 
 var init = false;
 var hasCpp = false;
-
-const extensionId = "jerrygoyal.shortcut-menu-bar";
 // this method is called when your extension is activated
 // your extension is activated the very first time the command is executed
 export function activate(context: ExtensionContext) {
@@ -350,100 +344,9 @@ function getWorkspaceFolder ( activeTextEditor = window.activeTextEditor ){
 
 
 
-interface ExtensionData {
-
-    version ?: number [] ;
-}
 
 
-import Version from './Version'
 
 
-function storage ( context : ExtensionContext ){
-
-    const data = context.globalState
-        .get<any>(extensionId,{})
-
-    if( typeof data === 'string' )
-        return {}
-
-    return data as ExtensionData
-}
-
-function store ( context : ExtensionContext , update : Function ){
-
-    let data = storage(context);
-
-    update(data);
-
-    context.globalState
-        .update(extensionId,data);
-}
-
-function knownVersion ( context : ExtensionContext ){
-
-    const { version } = storage(context);
-
-    return new Version(version)
-}
-
-function pack (){
-    return extensions
-        .getExtension(extensionId)
-        ?.packageJSON
-}
-
-function version (){
-
-    const { version } = pack() ?? {};
-
-    return Version
-        .from(version);
-}
 
 
-const { showInformationMessage } = window;
-
-function checkForUpdates ( context : ExtensionContext ){
-
-    const
-        known = knownVersion(context) ,
-        pack = version() ;
-
-    store(context,
-        ( data ) => data.version = pack);
-
-
-    if( pack.isBugFix(known) )
-        return
-
-    showUpdateMessage();
-}
-
-
-async function showUpdateMessage (){
-
-    const { string } = version();
-
-    const message =
-        `Shortcut Menubar v${ string } - Add your own buttons!`;
-
-    const tutorial = { title : 'See how' };
-
-    const actions = [ tutorial ];
-
-    const action = await
-        showInformationMessage(message, ... actions );
-
-    switch ( action ){
-    case tutorial : openTutorial() ;
-    }
-}
-
-
-const Link_Tutorial =  Uri
-    .parse(`https://github.com/GorvGoyl/Shortcut-Menu-Bar-VSCode-Extension#create-buttons-with-custom-commands`);
-
-async function openTutorial (){
-    await env.openExternal(Link_Tutorial);
-}
