@@ -27,6 +27,7 @@ import {
   commands,
   Disposable,
   env,
+  Extension,
   ExtensionContext,
   extensions,
   Uri,
@@ -57,7 +58,7 @@ export function activate(context: ExtensionContext) {
   console.log("extension is now active!");
 
   // show notification on major release
-  showWhatsNew(context);
+  checkForUpdates(context);
 
   // rest of code
   // Step: If simple commands then add to this array
@@ -314,7 +315,7 @@ function resolveVariables(commandLine: String) {
 
 
 function getActiveEditorName (){
-    return window.activeTextEditor?.document.fileName;
+    return window.activeTextEditor?.document.fileName ?? ''
 }
 
 function getWorkspaceFolder ( activeTextEditor = window.activeTextEditor ){
@@ -322,7 +323,7 @@ function getWorkspaceFolder ( activeTextEditor = window.activeTextEditor ){
     const folders = workspace?.workspaceFolders;
 
     if( ! folders )
-        return
+        return ''
 
     const { length } = folders;
 
@@ -343,58 +344,106 @@ function getWorkspaceFolder ( activeTextEditor = window.activeTextEditor ){
 
     if( length )
         return folder.uri.fsPath
+
+    return ''
 }
 
 
-// https://stackoverflow.com/a/66303259/3073272
-function isMajorUpdate(previousVersion: string, currentVersion: string) {
-  // rain-check for malformed string
-  if (previousVersion.indexOf(".") === -1) {
-    return true;
-  }
-  //returns int array [1,1,1] i.e. [major,minor,patch]
-  var previousVerArr = previousVersion.split(".").map(Number);
-  var currentVerArr = currentVersion.split(".").map(Number);
 
-  if (currentVerArr[0] > previousVerArr[0]) {
-    return true;
-  } else {
-    return false;
-  }
+interface ExtensionData {
+
+    version ?: number [] ;
 }
 
-async function showWhatsNew(context: ExtensionContext) {
-  try {
-    const previousVersion = context.globalState.get<string>(extensionId);
-    const currentVersion =
-      extensions.getExtension(extensionId)!.packageJSON.version;
 
-    // store latest version
-    context.globalState.update(extensionId, currentVersion);
+import Version from './Version'
 
-    if (
-      previousVersion === undefined ||
-      isMajorUpdate(previousVersion, currentVersion)
-    ) {
-      // show whats new notificatin:
-      const actions = [{ title: "See how" }];
 
-      const result = await window.showInformationMessage(
-        `Shortcut Menubar v${currentVersion} — Add your own buttons!`,
-        ...actions
-      );
+function storage ( context : ExtensionContext ){
 
-      if (result !== null) {
-        if (result === actions[0]) {
-          await env.openExternal(
-            Uri.parse(
-              "https://github.com/GorvGoyl/Shortcut-Menu-Bar-VSCode-Extension#create-buttons-with-custom-commands"
-            )
-          );
-        }
-      }
+    const data = context.globalState
+        .get<any>(extensionId,{})
+
+    if( typeof data === 'string' )
+        return {}
+
+    return data as ExtensionData
+}
+
+function store ( context : ExtensionContext , update : Function ){
+
+    let data = storage(context);
+
+    update(data);
+
+    context.globalState
+        .update(extensionId,data);
+}
+
+function knownVersion ( context : ExtensionContext ){
+
+    const { version } = storage(context);
+
+    return new Version(version)
+}
+
+function pack (){
+    return extensions
+        .getExtension(extensionId)
+        ?.packageJSON
+}
+
+function version (){
+
+    const { version } = pack() ?? {};
+
+    return Version
+        .from(version);
+}
+
+
+const { showInformationMessage } = window;
+
+function checkForUpdates ( context : ExtensionContext ){
+
+    const
+        known = knownVersion(context) ,
+        pack = version() ;
+
+    store(context,
+        ( data ) => data.version = pack);
+
+
+    if( pack.isBugFix(known) )
+        return
+
+    showUpdateMessage();
+}
+
+
+async function showUpdateMessage (){
+
+    const { string } = version();
+
+    const message =
+        `Shortcut Menubar v${ string } - Add your own buttons!`;
+
+    const tutorial = { title : 'See how' };
+
+    const actions = [ tutorial ];
+
+    const action = await
+        showInformationMessage(message, ... actions );
+
+    switch ( action ){
+    case tutorial : openTutorial() ;
     }
-  } catch (e) {
-    console.log("Error", e);
-  }
+}
+
+
+const Link_Tutorial =  Uri
+    .parse(`https://github.com/GorvGoyl/Shortcut-Menu-Bar-VSCode-Extension#create-buttons-with-custom-commands`);
+
+async function openTutorial (){
+    await env.openExternal(Link_Tutorial);
 }
